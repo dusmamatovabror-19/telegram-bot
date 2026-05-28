@@ -23,7 +23,12 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
             filename = ydl.prepare_filename(info)
         await update.message.reply_text("✅ Yuborilmoqda...")
         with open(filename, 'rb') as video_file:
-            await update.message.reply_video(video_file)
+            await update.message.reply_video(
+                video_file,
+                read_timeout=300,
+                write_timeout=300,
+                connect_timeout=300
+            )
         os.remove(filename)
     except Exception as e:
         await update.message.reply_text(f"❌ Xatolik: {str(e)}")
