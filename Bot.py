@@ -10,25 +10,39 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not url.startswith("http"):
         await update.message.reply_text("❌ Iltimos, to'g'ri havola yuboring!")
         return
-    await update.message.reply_text("⏳ Video yuklanmoqda, kuting...")
+    await update.message.reply_text("⏳ Yuklanmoqda, kuting...")
     ydl_opts = {
         'format': 'best[filesize<50M]/best',
         'outtmpl': 'downloads/%(title)s.%(ext)s',
         'quiet': True,
+        'noplaylist': True,
     }
     try:
         os.makedirs("downloads", exist_ok=True)
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             filename = ydl.prepare_filename(info)
-        await update.message.reply_text("✅ Yuborilmoqda...")
-        with open(filename, 'rb') as video_file:
-            await update.message.reply_video(
-                video_file,
-                read_timeout=300,
-                write_timeout=300,
-                connect_timeout=300
-            )
+        
+        ext = filename.split('.')[-1].lower()
+        
+        if ext in ['jpg', 'jpeg', 'png', 'webp']:
+            await update.message.reply_text("✅ Rasm yuborilmoqda...")
+            with open(filename, 'rb') as f:
+                await update.message.reply_photo(
+                    f,
+                    read_timeout=300,
+                    write_timeout=300,
+                    connect_timeout=300
+                )
+        else:
+            await update.message.reply_text("✅ Video yuborilmoqda...")
+            with open(filename, 'rb') as f:
+                await update.message.reply_video(
+                    f,
+                    read_timeout=300,
+                    write_timeout=300,
+                    connect_timeout=300
+                )
         os.remove(filename)
     except Exception as e:
         await update.message.reply_text(f"❌ Xatolik: {str(e)}")
