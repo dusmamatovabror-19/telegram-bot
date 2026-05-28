@@ -1,4 +1,6 @@
+
 import os
+import glob
 import yt_dlp
 from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
@@ -11,6 +13,7 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Iltimos, to'g'ri havola yuboring!")
         return
     await update.message.reply_text("⏳ Yuklanmoqda, kuting...")
+    os.makedirs("downloads", exist_ok=True)
     ydl_opts = {
         'format': 'best[filesize<50M]/best',
         'outtmpl': 'downloads/%(title)s.%(ext)s',
@@ -18,31 +21,26 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
         'noplaylist': True,
     }
     try:
-        os.makedirs("downloads", exist_ok=True)
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            filename = ydl.prepare_filename(info)
+            ydl.extract_info(url, download=True)
         
+        files = glob.glob('downloads/*')
+        if not files:
+            await update.message.reply_text("❌ Fayl topilmadi!")
+            return
+        
+        filename = max(files, key=os.path.getctime)
         ext = filename.split('.')[-1].lower()
         
         if ext in ['jpg', 'jpeg', 'png', 'webp']:
             await update.message.reply_text("✅ Rasm yuborilmoqda...")
             with open(filename, 'rb') as f:
-                await update.message.reply_photo(
-                    f,
-                    read_timeout=300,
-                    write_timeout=300,
-                    connect_timeout=300
-                )
+                await update.message.reply_photo(f, read_timeout=300, write_timeout=300, connect_timeout=300)
         else:
             await update.message.reply_text("✅ Video yuborilmoqda...")
             with open(filename, 'rb') as f:
-                await update.message.reply_video(
-                    f,
-                    read_timeout=300,
-                    write_timeout=300,
-                    connect_timeout=300
-                )
+                await update.message.reply_video(f, read_timeout=300, write_timeout=300, connect_timeout=300)
+        
         os.remove(filename)
     except Exception as e:
         await update.message.reply_text(f"❌ Xatolik: {str(e)}")
