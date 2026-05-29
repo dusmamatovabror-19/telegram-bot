@@ -1,70 +1,74 @@
 
 import os
 import glob
+import asyncio
 import yt_dlp
-import instaloader
-from telegram import Update
+from telegram import Update, InputMediaPhoto, InputMediaVideo
 from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
 
 BOT_TOKEN = "8327848961:AAHW-NYy8PuvjcDs-QxhL0A5IgDJsn5T4sQ"
 
-L = instaloader.Instaloader(download_videos=True, download_pictures=True, save_metadata=False, post_metadata_txt_pattern="")
-
-async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def download_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = update.message.text.strip()
     if not url.startswith("http"):
         await update.message.reply_text("❌ Iltimos, to'g'ri havola yuboring!")
         return
     await update.message.reply_text("⏳ Yuklanmoqda, kuting...")
     
+    os.makedirs("downloads", exist_ok=True)
+    
+    ydl_opts = {
+        'outtmpl': 'downloads/%(title)s.%(ext)s',
+        'quiet': True,
+        'noplaylist': True,
+        'format': 'best[filesize<50M]/best',
+        'concurrent_fragment_downloads': 4,
+    }
+    
     try:
-        if "instagram.com" in url:
-            shortcode = url.split("/p/")[-1].split("/")[0] if "/p/" in url else url.split("/reel/")[-1].split("/")[0]
-            post = instaloader.Post.from_shortcode(L.context, shortcode)
-            L.download_post(post, target="downloads")
-            
-            files = glob.glob('downloads/**/*', recursive=True)
-            files = [f for f in files if os.path.isfile(f) and f.endswith(('.jpg', '.jpeg', '.png', '.mp4'))]
-            
-            if not files:
-                await update.message.reply_text("❌ Fayl topilmadi!")
-                return
-            
-            for filename in files:
-                ext = filename.split('.')[-1].lower()
-                if ext in ['jpg', 'jpeg', 'png']:
-                    with open(filename, 'rb') as f:
-                        await update.message.reply_photo(f, read_timeout=300, write_timeout=300, connect_timeout=300)
-                elif ext == 'mp4':
-                    with open(filename, 'rb') as f:
-                        await update.message.reply_video(f, read_timeout=300, write_timeout=300, connect_timeout=300)
-                os.remove(filename)
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, lambda: yt_dlp.YoutubeDL(ydl_opts).download([url]))
+        
+        files = sorted(glob.glob('downloads/*'), key=os.path.getctime)
+        files = [f for f in files if os.path.isfile(f) and not f.endswith('.part')]
+        
+        if not files:
+            await update.message.reply_text("❌ Fayl topilmadi!")
+            return
+        
+        media_group = []
+        for f in files:
+            ext = f.split('.')[-1].lower()
+            if ext in ['jpg', 'jpeg', 'png', 'webp']:
+                media_group.append(InputMediaPhoto(open(f, 'rb')))
+            elif ext in ['mp4', 'mkv', 'webm', 'mov']:
+                media_group.append(InputMediaVideo(open(f, 'rb')))
+        
+        if len(media_group) == 0:
+            await update.message.reply_text("❌ Fayl topilmadi!")
+        elif len(media_group) == 1:
+            ext = files[0].split('.')[-1].lower()
+            if ext in ['jpg', 'jpeg', 'png', 'webp']:
+                await update.message.reply_photo(open(files[0], 'rb'), read_timeout=300, write_timeout=300, connect_timeout=300)
+            else:
+                await update.message.reply_video(open(files[0], 'rb'), read_timeout=300, write_timeout=300, connect_timeout=300)
         else:
-            ydl_opts = {
-                'format': 'best[filesize<50M]/best',
-                'outtmpl': 'downloads/%(title)s.%(ext)s',
-                'quiet': True,
-            }
-            os.makedirs("downloads", exist_ok=True)
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                ydl.extract_info(url, download=True)
-            
-            files = glob.glob('downloads/*')
-            if not files:
-                await update.message.reply_text("❌ Fayl topilmadi!")
-                return
-            
-            filename = max(files, key=os.path.getctime)
-            with open(filename, 'rb') as f:
-                await update.message.reply_video(f, read_timeout=300, write_timeout=300, connect_timeout=300)
-            os.remove(filename)
-            
+            for i in range(0, len(media_group), 10):
+                await update.message.reply_media_group(media_group[i:i+10], read_timeout=300, write_timeout=300, connect_timeout=300)
+        
         await update.message.reply_text("✅ Tayyor!")
+        
+        for f in files:
+            try:
+                os.remove(f)
+            except:
+                pass
+                
     except Exception as e:
         await update.message.reply_text(f"❌ Xatolik: {str(e)}")
 
 if __name__ == "__main__":
     app = ApplicationBuilder().token(BOT_TOKEN).build()
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, download_video))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, download_media))
     print("Bot ishga tushdi...")
     app.run_polling()
