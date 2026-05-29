@@ -1,3 +1,4 @@
+
 import os
 import glob
 import asyncio
@@ -7,6 +8,7 @@ from telegram import Update, InputMediaPhoto, InputMediaVideo
 from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
 
 BOT_TOKEN = "8327848961:AAHW-NYy8PuvjcDs-QxhL0A5IgDJsn5T4sQ"
+BOT_USERNAME = "@YUKLAVCHI_10_BOT"
 
 L = instaloader.Instaloader(download_videos=True, download_pictures=True, save_metadata=False, post_metadata_txt_pattern="")
 try:
@@ -55,6 +57,8 @@ async def download_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("❌ Fayl topilmadi!")
             return
         
+        caption = f"✅ Bizdan foydalanganingiz uchun xursandmiz!\n👉 {BOT_USERNAME}"
+        
         media_group = []
         for f in files:
             ext = f.split('.')[-1].lower()
@@ -68,14 +72,17 @@ async def download_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif len(media_group) == 1:
             ext = files[0].split('.')[-1].lower()
             if ext in ['jpg', 'jpeg', 'png', 'webp']:
-                await update.message.reply_photo(open(files[0], 'rb'), read_timeout=300, write_timeout=300, connect_timeout=300)
+                await update.message.reply_photo(open(files[0], 'rb'), caption=caption, read_timeout=300, write_timeout=300, connect_timeout=300)
             else:
-                await update.message.reply_video(open(files[0], 'rb'), read_timeout=300, write_timeout=300, connect_timeout=300)
+                await update.message.reply_video(open(files[0], 'rb'), caption=caption, read_timeout=300, write_timeout=300, connect_timeout=300)
         else:
+            media_group[-1] = (
+                InputMediaPhoto(open(files[-1], 'rb'), caption=caption)
+                if files[-1].split('.')[-1].lower() in ['jpg', 'jpeg', 'png', 'webp']
+                else InputMediaVideo(open(files[-1], 'rb'), caption=caption)
+            )
             for i in range(0, len(media_group), 10):
                 await update.message.reply_media_group(media_group[i:i+10], read_timeout=300, write_timeout=300, connect_timeout=300)
-        
-        await update.message.reply_text("✅ Tayyor!")
         
         for f in files:
             try:
