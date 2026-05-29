@@ -1,4 +1,3 @@
-
 import os
 import glob
 import asyncio
@@ -40,8 +39,12 @@ async def download_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
             files = sorted(glob.glob('downloads/**/*', recursive=True))
             files = [f for f in files if os.path.isfile(f) and f.endswith(('.jpg', '.jpeg', '.png', '.mp4'))]
         else:
-            https://www.instagram.com/reel/DY3xTabsQIG/?igsh=MThuM2NzbmR1NmVmZQ==
-            
+            ydl_opts = {
+                'outtmpl': 'downloads/file_%(autonumber)s.%(ext)s',
+                'quiet': True,
+                'noplaylist': True,
+                'format': 'best[filesize<45M]/best[height<=720]',
+            }
             loop = asyncio.get_event_loop()
             await loop.run_in_executor(None, lambda: yt_dlp.YoutubeDL(ydl_opts).download([url]))
             await asyncio.sleep(1)
