@@ -1,4 +1,3 @@
-
 import os
 import glob
 import asyncio
@@ -18,7 +17,7 @@ async def download_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     os.makedirs("downloads", exist_ok=True)
     
     ydl_opts = {
-        'outtmpl': 'downloads/%(title)s.%(ext)s',
+        'outtmpl': 'downloads/file_%(autonumber)s.%(ext)s',
         'quiet': True,
         'noplaylist': True,
         'format': 'best[filesize<50M]/best',
@@ -29,8 +28,10 @@ async def download_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
         loop = asyncio.get_event_loop()
         await loop.run_in_executor(None, lambda: yt_dlp.YoutubeDL(ydl_opts).download([url]))
         
+        await asyncio.sleep(1)
+        
         files = sorted(glob.glob('downloads/*'), key=os.path.getctime)
-        files = [f for f in files if os.path.isfile(f) and not f.endswith('.part')]
+        files = [f for f in files if os.path.isfile(f) and not f.endswith('.part') and not f.endswith('.ytdl')]
         
         if not files:
             await update.message.reply_text("❌ Fayl topilmadi!")
@@ -45,7 +46,7 @@ async def download_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 media_group.append(InputMediaVideo(open(f, 'rb')))
         
         if len(media_group) == 0:
-            await update.message.reply_text("❌ Fayl topilmadi!")
+            await update.message.reply_text("❌ Media topilmadi!")
         elif len(media_group) == 1:
             ext = files[0].split('.')[-1].lower()
             if ext in ['jpg', 'jpeg', 'png', 'webp']:
