@@ -16,12 +16,12 @@ async def download_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("⏳ Yuklanmoqda, kuting...")
     os.makedirs("downloads", exist_ok=True)
     ydl_opts = {
-        'outtmpl': 'downloads/file_%(autonumber)s.%(ext)s',
-        'quiet': True,
-        'noplaylist': True,
-        'format': 'best[filesize<45M]/best[height<=720]',
-        'concurrent_fragment_downloads': 4,
-    }
+    'outtmpl': 'downloads/file_%(autonumber)s.%(ext)s',
+    'quiet': True,
+    'noplaylist': True,
+    'format': 'best/bestvideo+bestaudio',
+}
+    
     try:
         loop = asyncio.get_event_loop()
         await loop.run_in_executor(None, lambda: yt_dlp.YoutubeDL(ydl_opts).download([url]))
