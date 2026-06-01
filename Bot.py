@@ -2,25 +2,11 @@ import os
 import glob
 import asyncio
 import yt_dlp
-import instaloader
 from telegram import Update, InputMediaPhoto, InputMediaVideo
 from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
 
 BOT_TOKEN = "8327848961:AAHW-NYy8PuvjcDs-QxhL0A5IgDJsn5T4sQ"
 BOT_USERNAME = "@YUKLAVCHI_10_BOT"
-
-L = instaloader.Instaloader(
-    download_videos=True,
-    download_pictures=True,
-    save_metadata=False,
-    post_metadata_txt_pattern=""
-)
-    try:
-    L.login("abro.r199728", "abrorbek10")
-    L.save_session_to_file()
-except Exception as e:
-    print(f"Login xato: {e}")
-    L.anonymous_login()
 
 async def download_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = update.message.text.strip()
@@ -30,31 +16,21 @@ async def download_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("⏳ Yuklanmoqda, kuting...")
     os.makedirs("downloads", exist_ok=True)
 
+    ydl_opts = {
+        'outtmpl': 'downloads/file_%(autonumber)s.%(ext)s',
+        'quiet': True,
+        'noplaylist': True,
+        'format': 'best/bestvideo+bestaudio',
+        'username': 'abro.r199728',
+        'password': 'abrorbek',
+    }
+
     try:
-        if "instagram.com" in url:
-            if "/p/" in url:
-                shortcode = url.split("/p/")[1].split("/")[0]
-            elif "/reel/" in url:
-                shortcode = url.split("/reel/")[1].split("/")[0]
-            else:
-                shortcode = url.rstrip("/").split("/")[-1]
-            shortcode = shortcode.split("?")[0]
-            post = instaloader.Post.from_shortcode(L.context, shortcode)
-            L.download_post(post, target="downloads")
-            files = sorted(glob.glob('downloads/**/*', recursive=True))
-            files = [f for f in files if os.path.isfile(f) and f.endswith(('.jpg', '.jpeg', '.png', '.mp4'))]
-        else:
-            ydl_opts = {
-                'outtmpl': 'downloads/file_%(autonumber)s.%(ext)s',
-                'quiet': True,
-                'noplaylist': True,
-                'format': 'best/bestvideo+bestaudio',
-            }
-            loop = asyncio.get_event_loop()
-            await loop.run_in_executor(None, lambda: yt_dlp.YoutubeDL(ydl_opts).download([url]))
-            await asyncio.sleep(1)
-            files = sorted(glob.glob('downloads/*'), key=os.path.getctime)
-            files = [f for f in files if os.path.isfile(f) and not f.endswith('.part')]
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, lambda: yt_dlp.YoutubeDL(ydl_opts).download([url]))
+        await asyncio.sleep(1)
+        files = sorted(glob.glob('downloads/*'), key=os.path.getctime)
+        files = [f for f in files if os.path.isfile(f) and not f.endswith('.part')]
 
         if not files:
             await update.message.reply_text("❌ Fayl topilmadi!")
