@@ -15,10 +15,12 @@ L = instaloader.Instaloader(
     save_metadata=False,
     post_metadata_txt_pattern=""
 )
-try:
+    try:
     L.login("abro.r199728", "abrorbek10")
+    L.save_session_to_file()
 except Exception as e:
     print(f"Login xato: {e}")
+    L.anonymous_login()
 
 async def download_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = update.message.text.strip()
