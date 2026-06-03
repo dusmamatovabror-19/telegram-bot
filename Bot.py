@@ -2,11 +2,37 @@ import os
 import glob
 import asyncio
 import yt_dlp
+import requests
+import re
 from telegram import Update, InputMediaPhoto, InputMediaVideo
 from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
 
 BOT_TOKEN = "8327848961:AAHW-NYy8PuvjcDs-QxhL0A5IgDJsn5T4sQ"
 BOT_USERNAME = "@YUKLAVCHI_10_BOT"
+
+def download_instagram_photos(url, folder):
+    try:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15',
+            'Accept': 'text/html,application/xhtml+xml',
+        }
+        r = requests.get(url, headers=headers)
+        # Rasm URL larini topish
+        matches = re.findall(r'"display_url":"(https://[^"]+)"', r.text)
+        if not matches:
+            matches = re.findall(r'content="(https://[^"]+\.jpg[^"]*)"', r.text)
+        
+        files = []
+        for i, img_url in enumerate(matches[:10]):
+            img_url = img_url.replace('\\u0026', '&')
+            img_r = requests.get(img_url, headers=headers)
+            path = f"{folder}/photo_{i}.jpg"
+            with open(path, 'wb') as f:
+                f.write(img_r.content)
+            files.append(path)
+        return files
+    except:
+        return []
 
 async def download_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = update.message.text.strip()
@@ -19,35 +45,45 @@ async def download_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     folder = f"downloads/{update.message.message_id}"
     os.makedirs(folder, exist_ok=True)
 
-    ydl_opts = {
-        'outtmpl': f'{folder}/%(title)s.%(ext)s',
-        'quiet': True,
-        'noplaylist': True,
-        'format': 'best[filesize<50M]/best',
-    }
+    files = []
 
-    if "instagram.com" in url:
-        ydl_opts['username'] = 'lion.7795326'
-        ydl_opts['password'] = 'Dusmamatov&19'
-
-    try:
+    # Instagram rasm posti
+    if "instagram.com/p/" in url:
         loop = asyncio.get_event_loop()
-        await loop.run_in_executor(
-            None, lambda: yt_dlp.YoutubeDL(ydl_opts).download([url])
+        photo_files = await loop.run_in_executor(
+            None, lambda: download_instagram_photos(url, folder)
         )
-    except Exception as e:
-        await update.message.reply_text(f"❌ Xatolik: {str(e)}")
-        cleanup(folder)
-        return
+        files = [(f, 'photo') for f in photo_files]
 
-    await asyncio.sleep(1)
+    # Video (reels, youtube, facebook)
+    if not files:
+        ydl_opts = {
+            'outtmpl': f'{folder}/%(title)s.%(ext)s',
+            'quiet': True,
+            'noplaylist': True,
+            'format': 'best[filesize<50M]/best',
+        }
+        if "instagram.com" in url:
+            ydl_opts['username'] = 'lion.7795326'
+            ydl_opts['password'] = 'Dusmamatov&19'
 
-    files = sorted([
-        f for f in glob.glob(f'{folder}/*')
-        if os.path.isfile(f)
-        and not f.endswith('.part')
-        and f.split('.')[-1].lower() in ['mp4', 'mkv', 'webm', 'mov', 'jpg', 'jpeg', 'png']
-    ], key=os.path.getctime)
+        try:
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(
+                None, lambda: yt_dlp.YoutubeDL(ydl_opts).download([url])
+            )
+        except Exception as e:
+            await update.message.reply_text(f"❌ Xatolik: {str(e)}")
+            cleanup(folder)
+            return
+
+        await asyncio.sleep(1)
+        raw_files = sorted([
+            f for f in glob.glob(f'{folder}/*')
+            if os.path.isfile(f) and not f.endswith('.part')
+            and f.split('.')[-1].lower() in ['mp4', 'mkv', 'webm', 'mov', 'jpg', 'jpeg', 'png']
+        ], key=os.path.getctime)
+        files = [(f, 'photo' if f.split('.')[-1].lower() in ['jpg','jpeg','png'] else 'video') for f in raw_files]
 
     if not files:
         await update.message.reply_text("❌ Fayl topilmadi!")
@@ -57,9 +93,8 @@ async def download_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     caption = f"✅ Bizdan foydalanganingiz uchun xursandmiz!\n👉 {BOT_USERNAME}"
 
     try:
-        for f in files:
-            ext = f.split('.')[-1].lower()
-            if ext in ['jpg', 'jpeg', 'png']:
+        for f, t in files:
+            if t == 'photo':
                 await update.message.reply_photo(open(f, 'rb'), caption=caption,
                     read_timeout=300, write_timeout=300, connect_timeout=300)
             else:
