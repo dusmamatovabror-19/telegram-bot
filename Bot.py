@@ -25,10 +25,9 @@ async def download_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
         'noplaylist': True,
         'format': 'best[filesize<50M]/best',
     }
-
-    if "instagram.com" in url:
-        ydl_opts['username'] = 'abro.r199728'
-        ydl_opts['password'] = 'abrorbek10'
+if "instagram.com" in url:
+    ydl_opts['username'] = 'lion.7795326'
+    ydl_opts['password'] = 'abrorbek10' 
 
     try:
         loop = asyncio.get_event_loop()
