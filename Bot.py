@@ -7,7 +7,7 @@ import re
 from telegram import Update, InputMediaPhoto, InputMediaVideo
 from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
 
-BOT_TOKEN = "8327848961:AAHW-NYy8PuvjcDs-QxhL0A5IgDJsn5T4sQ"
+BOT_TOKEN = "8327848961:AAHJR8c9LMbKmiMGULn4jT4YbVkXzKexr0U" 
 BOT_USERNAME = "@YUKLAVCHI_10_BOT"
 
 def download_instagram_photos(url, folder):
