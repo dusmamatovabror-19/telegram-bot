@@ -4,31 +4,11 @@ import asyncio
 import yt_dlp
 import requests
 import re
-import json
 from telegram import Update, InputMediaPhoto, InputMediaVideo
-from telegram.ext import ApplicationBuilder, MessageHandler, CommandHandler, filters, ContextTypes
+from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
 
-BOT_TOKEN = "8327848961:AAHJR8c9LMbKmiMGULn4jT4YbVkXzKexr0U"
+BOT_TOKEN = "8327848961:AAHJR8c9LMbKmiMGULn4jT4YbVkXzKexr0U" 
 BOT_USERNAME = "@YUKLAVCHI_10_BOT"
-ADMIN_ID =699337665   # Bu yerga o'z Telegram ID ingizni yozing
-
-def load_users():
-    try:
-        with open('users.json', 'r') as f:
-            return set(json.load(f))
-    except:
-        return set()
-
-def save_users(users):
-    with open('users.json', 'w') as f:
-        json.dump(list(users), f)
-
-users = load_users()
-
-async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message.chat_id != ADMIN_ID:
-        return
-    await update.message.reply_text(f"👥 Jami foydalanuvchilar: {len(users)} ta")
 
 def download_instagram_photos(url, folder):
     try:
@@ -37,9 +17,11 @@ def download_instagram_photos(url, folder):
             'Accept': 'text/html,application/xhtml+xml',
         }
         r = requests.get(url, headers=headers)
+        # Rasm URL larini topish
         matches = re.findall(r'"display_url":"(https://[^"]+)"', r.text)
         if not matches:
             matches = re.findall(r'content="(https://[^"]+\.jpg[^"]*)"', r.text)
+        
         files = []
         for i, img_url in enumerate(matches[:10]):
             img_url = img_url.replace('\\u0026', '&')
@@ -53,10 +35,6 @@ def download_instagram_photos(url, folder):
         return []
 
 async def download_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.message.from_user.id
-    users.add(user_id)
-    save_users(users)
-
     url = update.message.text.strip()
     if not url.startswith("http"):
         await update.message.reply_text("❌ Iltimos, to'g'ri havola yuboring!")
@@ -69,6 +47,7 @@ async def download_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     files = []
 
+    # Instagram rasm posti
     if "instagram.com/p/" in url:
         loop = asyncio.get_event_loop()
         photo_files = await loop.run_in_executor(
@@ -76,6 +55,7 @@ async def download_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         files = [(f, 'photo') for f in photo_files]
 
+    # Video (reels, youtube, facebook)
     if not files:
         ydl_opts = {
             'outtmpl': f'{folder}/%(title)s.%(ext)s',
@@ -129,9 +109,8 @@ def cleanup(folder):
     import shutil
     shutil.rmtree(folder, ignore_errors=True)
 
-if __name__ == "__main__":
+if name == "main":
     app = ApplicationBuilder().token(BOT_TOKEN).build()
-    app.add_handler(CommandHandler("stats", stats))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, download_media))
     print("Bot ishga tushdi...")
     app.run_polling()
